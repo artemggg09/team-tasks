@@ -9,6 +9,9 @@ use RuntimeException;
 
 final class Database
 {
+    /** Увеличивать при изменении схемы */
+    public const SCHEMA_VERSION = 2;
+
     private static ?PDO $pdo = null;
 
     public static function connection(): PDO
@@ -63,7 +66,8 @@ final class Database
 
         self::$pdo = $pdo;
 
-        if ($needsMigration) {
+        // Для SQLite версия схемы хранится в PRAGMA user_version — обновляемся сами
+        if ($needsMigration || ($isSqlite && (int) $pdo->query('PRAGMA user_version')->fetchColumn() < self::SCHEMA_VERSION)) {
             self::migrate();
         }
 
@@ -97,5 +101,31 @@ final class Database
         foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
             $pdo->exec($statement);
         }
+
+        // v2: дата завершения задачи (для «темпа недели») в уже существующих БД
+        if (!self::hasColumn('tasks', 'completed_at')) {
+            $pdo->exec('ALTER TABLE tasks ADD COLUMN completed_at DATETIME NULL');
+            $pdo->exec("UPDATE tasks SET completed_at = updated_at WHERE status = 'done'");
+        }
+
+        if (self::driver() === 'sqlite') {
+            $pdo->exec('PRAGMA user_version = ' . self::SCHEMA_VERSION);
+        }
+    }
+
+    private static function hasColumn(string $table, string $column): bool
+    {
+        $pdo = self::connection();
+        if (self::driver() === 'sqlite') {
+            foreach ($pdo->query('PRAGMA table_info(' . $table . ')')->fetchAll() as $col) {
+                if ($col['name'] === $column) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        $stmt = $pdo->prepare('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+        $stmt->execute([$table, $column]);
+        return $stmt->fetchColumn() !== false;
     }
 }

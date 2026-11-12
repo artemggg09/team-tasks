@@ -74,6 +74,16 @@ function format_date(?string $date): string
 }
 
 /**
+ * Дата словами: «12 ноября».
+ */
+function ru_date(?string $date = null): string
+{
+    $months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    $ts = $date === null ? time() : (strtotime($date) ?: time());
+    return date('j', $ts) . ' ' . $months[(int) date('n', $ts) - 1];
+}
+
+/**
  * Русское склонение: plural(5, 'задача', 'задачи', 'задач').
  */
 function plural(int $n, string $one, string $few, string $many): string

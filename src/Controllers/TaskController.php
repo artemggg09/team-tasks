@@ -34,6 +34,8 @@ final class TaskController
             'users'       => User::all(),
             'activeCount' => count($active),
             'backUrl'     => tasks_url($filters),
+            'focus'       => Task::focus($userId),
+            'pace'        => Task::weekPace(),
         ]);
     }
 
@@ -139,6 +141,7 @@ final class TaskController
                     'overdue'      => Task::isOverdue($task),
                 ],
                 'counts'  => Task::statusCounts($filters, (int) Auth::id()),
+                'pace'    => Task::weekPace(),
                 'message' => '«' . $task['title'] . '» → ' . Task::STATUSES[$status],
             ]);
             return;

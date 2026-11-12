@@ -118,6 +118,7 @@
       .then(function (json) {
         if (card) applyStatus(card, json.task);
         updateCounts(json.counts);
+        updatePace(json.pace);
         toast(json.message || ('Статус: ' + labels[status]));
       })
       .catch(function (err) {
@@ -163,6 +164,26 @@
       var el = document.querySelector('[data-count="' + key + '"]');
       if (el) el.textContent = counts[key];
     });
+  }
+
+  function updatePace(p) {
+    var el = document.getElementById('pace');
+    if (!el || !p) return;
+    el.className = 'pace pace--' + p.level;
+    el.querySelectorAll('.pace__seg').forEach(function (seg, i) {
+      seg.classList.toggle('is-on', i < p.filled);
+    });
+    var ratio = el.querySelector('[data-pace="ratio"]');
+    if (ratio) ratio.textContent = p.done + ' из ' + p.planned;
+    var bar = el.querySelector('[data-pace="bar"]');
+    if (bar) {
+      bar.setAttribute('aria-valuenow', p.done);
+      bar.setAttribute('aria-valuemax', p.planned);
+    }
+    var note = el.querySelector('[data-pace="note"]');
+    if (note) note.className = 'pace__note pace__note--' + p.note_level;
+    var text = el.querySelector('[data-pace="note-text"]');
+    if (text) text.textContent = p.note;
   }
 
   function updateBoardCounts() {

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   author_id INT UNSIGNED NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME NULL,
   INDEX idx_tasks_status (status),
   INDEX idx_tasks_due (due_date),
   CONSTRAINT fk_tasks_assignee FOREIGN KEY (assignee_id) REFERENCES users(id) ON DELETE SET NULL,

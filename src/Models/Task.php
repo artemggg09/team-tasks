@@ -145,23 +145,139 @@ final class Task
     {
         $db = Database::connection();
         $now = date('Y-m-d H:i:s');
-        $stmt = $db->prepare('INSERT INTO tasks (title, description, status, priority, due_date, assignee_id, author_id, created_at, updated_at)
-            VALUES (:title, :description, :status, :priority, :due_date, :assignee_id, :author_id, :created_at, :updated_at)');
-        $stmt->execute(self::bind($data) + ['author_id' => $authorId, 'created_at' => $now, 'updated_at' => $now]);
+        $stmt = $db->prepare('INSERT INTO tasks (title, description, status, priority, due_date, assignee_id, author_id, created_at, updated_at, completed_at)
+            VALUES (:title, :description, :status, :priority, :due_date, :assignee_id, :author_id, :created_at, :updated_at, :completed_at)');
+        $stmt->execute(self::bind($data) + [
+            'author_id'    => $authorId,
+            'created_at'   => $now,
+            'updated_at'   => $now,
+            'completed_at' => $data['status'] === 'done' ? $now : null,
+        ]);
         return (int) $db->lastInsertId();
     }
 
     public static function update(int $id, array $data): void
     {
         $stmt = Database::connection()->prepare('UPDATE tasks SET title = :title, description = :description, status = :status,
-            priority = :priority, due_date = :due_date, assignee_id = :assignee_id, updated_at = :updated_at WHERE id = :id');
-        $stmt->execute(self::bind($data) + ['updated_at' => date('Y-m-d H:i:s'), 'id' => $id]);
+            priority = :priority, due_date = :due_date, assignee_id = :assignee_id, updated_at = :updated_at,
+            completed_at = ' . self::completedSql() . ' WHERE id = :id');
+        $stmt->execute(self::bind($data) + [
+            'updated_at' => date('Y-m-d H:i:s'),
+            'id'         => $id,
+            'is_done'    => $data['status'] === 'done' ? '1' : '0',
+            'now'        => date('Y-m-d H:i:s'),
+        ]);
     }
 
     public static function updateStatus(int $id, string $status): void
     {
-        $stmt = Database::connection()->prepare('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?');
-        $stmt->execute([$status, date('Y-m-d H:i:s'), $id]);
+        $stmt = Database::connection()->prepare('UPDATE tasks SET status = :status, updated_at = :updated_at,
+            completed_at = ' . self::completedSql() . ' WHERE id = :id');
+        $stmt->execute([
+            'status'     => $status,
+            'updated_at' => date('Y-m-d H:i:s'),
+            'is_done'    => $status === 'done' ? '1' : '0',
+            'now'        => date('Y-m-d H:i:s'),
+            'id'         => $id,
+        ]);
+    }
+
+    /**
+     * Дата завершения: ставится при переходе в «Завершена», сохраняется при повторном сохранении, сбрасывается при возврате в работу.
+     */
+    private static function completedSql(): string
+    {
+        // Параметры PDO приходят строками: в SQLite '1' = 1 ложно, поэтому сравниваем со строкой
+        return "CASE WHEN :is_done = '1' THEN COALESCE(completed_at, :now) ELSE NULL END";
+    }
+
+    /**
+     * «Фокус дня»: одна незавершённая задача, с которой стоит начать.
+     * Сначала мои, затем без исполнителя; внутри — просроченные, на сегодня, высокий приоритет, ближайший срок.
+     */
+    public static function focus(int $userId): ?array
+    {
+        $today = date('Y-m-d');
+        $stmt = Database::connection()->prepare(self::SELECT . "
+            WHERE t.status <> 'done' AND (t.assignee_id = :me OR t.assignee_id IS NULL)
+            ORDER BY
+                CASE WHEN t.assignee_id = :me2 THEN 0 ELSE 1 END,
+                CASE WHEN t.due_date IS NOT NULL AND t.due_date < :today THEN 0
+                     WHEN t.due_date = :today2 THEN 1 ELSE 2 END,
+                CASE t.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+                CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END, t.due_date,
+                CASE t.status WHEN 'in_progress' THEN 0 ELSE 1 END,
+                t.created_at
+            LIMIT 1");
+        $stmt->execute(['me' => $userId, 'me2' => $userId, 'today' => $today, 'today2' => $today]);
+        $row = $stmt->fetch();
+        if ($row === false) {
+            return null;
+        }
+        $task = self::hydrate($row);
+        $task['focus_reason'] = match (true) {
+            $task['overdue']                 => 'Срок уже прошёл — закройте её в первую очередь.',
+            $task['due_date'] === $today     => 'Срок сегодня — успейте до конца дня.',
+            $task['priority'] === 'high'     => 'Начните с этой задачи — она сильнее всего влияет на общий темп.',
+            $task['due_date'] !== null       => 'Ближайшая по сроку задача — сделайте её, пока есть запас.',
+            default                          => 'Самая важная из открытых задач — хороший старт дня.',
+        };
+        return $task;
+    }
+
+    public const PACE_SEGMENTS = 5;
+
+    /**
+     * «Темп недели» команды: закрыто за неделю / (закрыто + открытые со сроком до воскресенья, включая просроченные).
+     *
+     * @return array{done:int, planned:int, overdue:int, filled:int, segments:int, level:string, note:string}
+     */
+    public static function weekPace(): array
+    {
+        $db = Database::connection();
+        $weekStart = date('Y-m-d 00:00:00', strtotime('monday this week'));
+        $weekEnd = date('Y-m-d', strtotime('sunday this week'));
+        $today = date('Y-m-d');
+
+        $stmt = $db->prepare("SELECT
+                SUM(CASE WHEN status = 'done' AND completed_at >= :week_start THEN 1 ELSE 0 END) AS done,
+                SUM(CASE WHEN status <> 'done' AND due_date IS NOT NULL AND due_date <= :week_end THEN 1 ELSE 0 END) AS open_due,
+                SUM(CASE WHEN status <> 'done' AND due_date IS NOT NULL AND due_date < :today THEN 1 ELSE 0 END) AS overdue
+            FROM tasks");
+        $stmt->execute(['week_start' => $weekStart, 'week_end' => $weekEnd, 'today' => $today]);
+        $row = $stmt->fetch() ?: [];
+
+        $done = (int) ($row['done'] ?? 0);
+        $planned = $done + (int) ($row['open_due'] ?? 0);
+        $overdue = (int) ($row['overdue'] ?? 0);
+
+        if ($planned === 0) {
+            $filled = 0;
+            $level = 'idle';
+        } else {
+            // Хотя бы одна полоса: если сделано мало — одна красная
+            $filled = max(1, min(self::PACE_SEGMENTS, (int) round($done / $planned * self::PACE_SEGMENTS)));
+            $level = $filled >= 4 ? 'good' : ($filled === 3 ? 'warn' : 'bad');
+        }
+
+        $note = match (true) {
+            $overdue > 0      => $overdue . ' ' . plural($overdue, 'задача требует', 'задачи требуют', 'задач требуют') . ' внимания',
+            $level === 'good' => 'Отличный темп — так держать',
+            $level === 'warn' => 'Неплохо, но можно быстрее',
+            $level === 'bad'  => 'Закрыто мало задач',
+            default           => 'На эту неделю задач со сроком нет',
+        };
+
+        return [
+            'done'      => $done,
+            'planned'   => $planned,
+            'overdue'   => $overdue,
+            'filled'    => $filled,
+            'segments'  => self::PACE_SEGMENTS,
+            'level'     => $level,
+            'note'      => $note,
+            'note_level' => $overdue > 0 ? 'bad' : $level,
+        ];
     }
 
     public static function delete(int $id): void
