@@ -289,6 +289,17 @@ final class Task
         $stmt->execute([$id]);
     }
 
+    /**
+     * Менять статус, редактировать и удалять задачу может её автор или ответственный.
+     * Задачу без исполнителя может менять любой участник (иначе её некому взять в работу).
+     */
+    public static function canManage(array $task, int $userId): bool
+    {
+        return (int) $task['author_id'] === $userId
+            || $task['assignee_id'] === null
+            || (int) $task['assignee_id'] === $userId;
+    }
+
     public static function isOverdue(array $task): bool
     {
         return !empty($task['due_date']) && $task['status'] !== 'done' && $task['due_date'] < date('Y-m-d');

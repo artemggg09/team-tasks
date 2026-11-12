@@ -5,11 +5,13 @@
  * @var array $errors
  * @var array $users
  * @var string $back
+ * @var bool $readonly  чужая задача — только просмотр
  */
 use App\Core\View;
 use App\Models\Task;
 
 $isEdit = $existing !== null;
+$readonly ??= false;
 $action = $isEdit ? '/tasks/' . (int) $existing['id'] : '/tasks';
 $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid="true" aria-describedby="' . $f . '-error"' : '';
 ?>
@@ -18,10 +20,16 @@ $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid=
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
         К списку задач
     </a>
-    <h1 class="page-title"><?= $isEdit ? 'Редактирование задачи' : 'Новая задача' ?></h1>
+    <h1 class="page-title"><?= $readonly ? 'Просмотр задачи' : ($isEdit ? 'Редактирование задачи' : 'Новая задача') ?></h1>
 </div>
 
 <div class="card form-card">
+    <?php if ($readonly): ?>
+        <div class="alert alert--info" role="note">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+            <span>Только просмотр: изменять задачу могут её автор или ответственный.</span>
+        </div>
+    <?php endif; ?>
     <?php if ($errors): ?>
         <div class="alert alert--error" role="alert">Проверьте поля формы: <?= count($errors) ?> <?= plural(count($errors), 'ошибка', 'ошибки', 'ошибок') ?>.</div>
     <?php endif; ?>
@@ -30,9 +38,10 @@ $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid=
         <?= csrf_field() ?>
         <input type="hidden" name="back" value="<?= e($back) ?>">
 
+        <fieldset class="form-fields"<?= $readonly ? ' disabled' : '' ?>>
         <div class="field">
             <label for="title">Название <span class="req" aria-hidden="true">*</span></label>
-            <input id="title" type="text" name="title" value="<?= e($task['title']) ?>" required maxlength="200" autofocus<?= $invalid('title') ?>>
+            <input id="title" type="text" name="title" value="<?= e($task['title']) ?>" required maxlength="200"<?= $readonly ? '' : ' autofocus' ?><?= $invalid('title') ?>>
             <?= View::partial('partials/field-error', ['errors' => $errors, 'field' => 'title']) ?>
         </div>
 
@@ -80,6 +89,7 @@ $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid=
                 <?= View::partial('partials/field-error', ['errors' => $errors, 'field' => 'priority']) ?>
             </div>
         </div>
+        </fieldset>
 
         <?php if ($isEdit): ?>
             <p class="form-meta">
@@ -89,12 +99,16 @@ $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid=
         <?php endif; ?>
 
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit"><?= $isEdit ? 'Сохранить' : 'Создать задачу' ?></button>
-            <a class="btn btn-ghost" href="<?= e($back) ?>">Отмена</a>
+            <?php if ($readonly): ?>
+                <a class="btn btn-secondary" href="<?= e($back) ?>">К списку задач</a>
+            <?php else: ?>
+                <button class="btn btn-primary" type="submit"><?= $isEdit ? 'Сохранить' : 'Создать задачу' ?></button>
+                <a class="btn btn-ghost" href="<?= e($back) ?>">Отмена</a>
+            <?php endif; ?>
         </div>
     </form>
 
-    <?php if ($isEdit): ?>
+    <?php if ($isEdit && !$readonly): ?>
         <details class="confirm confirm--inline">
             <summary class="btn btn-ghost btn-danger-text">Удалить задачу</summary>
             <div class="confirm__panel">

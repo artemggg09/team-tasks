@@ -7,9 +7,11 @@ use App\Models\Task;
 
 $id = (int) $task['id'];
 $editUrl = '/tasks/' . $id . '/edit?back=' . rawurlencode($backUrl);
+$canManage = !empty($task['can_manage']);
 ?>
-<article class="task-card status-<?= e($task['status']) ?><?= $task['overdue'] ? ' is-overdue' : '' ?>" id="task-<?= $id ?>" data-id="<?= $id ?>" data-status="<?= e($task['status']) ?>">
+<article class="task-card status-<?= e($task['status']) ?><?= $task['overdue'] ? ' is-overdue' : '' ?><?= $canManage ? '' : ' is-readonly' ?>" id="task-<?= $id ?>" data-id="<?= $id ?>" data-status="<?= e($task['status']) ?>">
     <div class="task-card__top">
+        <?php if ($canManage): ?>
         <form class="status-form" method="post" action="/tasks/<?= $id ?>/status">
             <?= csrf_field() ?>
             <input type="hidden" name="back" value="<?= e($backUrl) ?>">
@@ -24,6 +26,9 @@ $editUrl = '/tasks/' . $id . '/edit?back=' . rawurlencode($backUrl);
             </span>
             <button class="btn btn-secondary btn-sm nojs-only" type="submit">Сменить</button>
         </form>
+        <?php else: ?>
+            <span class="tag tag--<?= e($task['status']) ?>" title="Статус меняют автор или ответственный"><?= e(Task::STATUSES[$task['status']]) ?></span>
+        <?php endif; ?>
         <span class="priority priority--<?= e($task['priority']) ?>" title="Приоритет">
             <span class="priority__dot" aria-hidden="true"></span><?= e(Task::PRIORITIES[$task['priority']] ?? $task['priority']) ?>
         </span>
@@ -62,6 +67,7 @@ $editUrl = '/tasks/' . $id . '/edit?back=' . rawurlencode($backUrl);
             </span>
         <?php endif; ?>
 
+        <?php if ($canManage): ?>
         <div class="task-card__menu">
             <a class="icon-btn" href="<?= e($editUrl) ?>" title="Изменить" aria-label="Изменить задачу «<?= e($task['title']) ?>»">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
@@ -80,5 +86,11 @@ $editUrl = '/tasks/' . $id . '/edit?back=' . rawurlencode($backUrl);
                 </div>
             </details>
         </div>
+        <?php else: ?>
+            <span class="readonly-mark" title="Только просмотр: менять задачу могут автор или ответственный">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                <span class="visually-hidden">Только просмотр</span>
+            </span>
+        <?php endif; ?>
     </div>
 </article>

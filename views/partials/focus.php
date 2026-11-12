@@ -30,7 +30,12 @@ use App\Models\Task;
         <?php endif; ?>
     </div>
     <div class="focus__action">
-        <?php if ($focus !== null): ?>
+        <?php if ($focus !== null && empty($focus['can_manage'])): ?>
+            <a class="btn btn-secondary" href="/tasks/<?= (int) $focus['id'] ?>/edit?back=<?= e(rawurlencode($backUrl)) ?>">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                Посмотреть задачу
+            </a>
+        <?php elseif ($focus !== null): ?>
             <form method="post" action="/tasks/<?= (int) $focus['id'] ?>/status">
                 <?= csrf_field() ?>
                 <input type="hidden" name="status" value="done">

@@ -199,7 +199,8 @@
   if (board) {
     var dragged = null;
 
-    board.querySelectorAll('.task-card').forEach(function (card) {
+    // Перетаскивать можно только задачи, которые пользователь вправе менять
+    board.querySelectorAll('.task-card:not(.is-readonly)').forEach(function (card) {
       card.setAttribute('draggable', 'true');
     });
 
@@ -235,8 +236,9 @@
       e.preventDefault();
       list.classList.remove('is-drop-target');
       var status = list.dataset.status;
-      if (dragged.dataset.status !== status) {
-        changeStatus(dragged.querySelector('.status-form'), status);
+      var form = dragged.querySelector('.status-form');
+      if (form && dragged.dataset.status !== status) {
+        changeStatus(form, status);
       }
     });
   }

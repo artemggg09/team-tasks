@@ -25,9 +25,9 @@ $filters ??= null;
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <title><?= e($title ?? 'Задачи') ?> · <?= e(config('name')) ?></title>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/app.css?v=5">
-    <noscript><link rel="stylesheet" href="/assets/noscript.css?v=5"></noscript>
-    <script src="/assets/app.js?v=5" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=6">
+    <noscript><link rel="stylesheet" href="/assets/noscript.css?v=6"></noscript>
+    <script src="/assets/app.js?v=6" defer></script>
 </head>
 <body class="<?= $currentUser ? 'is-auth' : 'is-guest' ?>">
 <a class="skip-link" href="#main">Перейти к содержимому</a>

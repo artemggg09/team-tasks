@@ -19,8 +19,12 @@ final class TaskController
     {
         $filters = Task::normalizeFilters($_GET);
         $userId = (int) Auth::id();
-        $tasks = Task::search($filters, $userId);
+        $tasks = array_map(static fn (array $t) => $t + ['can_manage' => Task::canManage($t, $userId)], Task::search($filters, $userId));
         $owner = $this->paceOwner($filters);
+        $focus = Task::focus($owner['id'], $owner['self']);
+        if ($focus !== null) {
+            $focus['can_manage'] = Task::canManage($focus, $userId);
+        }
 
         $active = array_filter([
             $filters['q'], $filters['status'], $filters['assignee'], $filters['priority'],
@@ -35,7 +39,7 @@ final class TaskController
             'users'       => User::all(),
             'activeCount' => count($active),
             'backUrl'     => tasks_url($filters),
-            'focus'       => Task::focus($owner['id'], $owner['self']),
+            'focus'       => $focus,
             'pace'        => Task::weekPace($owner['id']),
             'owner'       => $owner,
         ]);
@@ -86,10 +90,11 @@ final class TaskController
             Response::error(404);
             return;
         }
+        $existing = $task;
         $task['assignee_id'] = (string) ($task['assignee_id'] ?? '');
         $task['due_date'] = (string) ($task['due_date'] ?? '');
         $task['description'] = (string) ($task['description'] ?? '');
-        $this->form($task, [], $task);
+        $this->form($task, [], $existing);
     }
 
     public function update(int $id): void
@@ -97,6 +102,9 @@ final class TaskController
         $task = Task::find($id);
         if ($task === null) {
             Response::error(404);
+            return;
+        }
+        if (!$this->authorize($task)) {
             return;
         }
         $data = $this->input();
@@ -117,6 +125,9 @@ final class TaskController
             Response::error(404);
             return;
         }
+        if (!$this->authorize($task)) {
+            return;
+        }
         Task::delete($id);
         Session::flash('success', 'Задача «' . $task['title'] . '» удалена.');
         redirect(Request::back());
@@ -130,6 +141,10 @@ final class TaskController
         $task = Task::find($id);
         if ($task === null) {
             Response::error(404);
+            return;
+        }
+
+        if (!$this->authorize($task)) {
             return;
         }
 
@@ -170,6 +185,22 @@ final class TaskController
         redirect($back . '#task-' . $id);
     }
 
+    /**
+     * Проверка прав на изменение задачи; при отказе отдаёт 403 (JSON для fetch).
+     */
+    private function authorize(array $task): bool
+    {
+        if (Task::canManage($task, (int) Auth::id())) {
+            return true;
+        }
+        if (Request::wantsJson()) {
+            Response::json(['ok' => false, 'error' => 'Менять задачу может только её автор или ответственный.'], 403);
+            return false;
+        }
+        Response::error(403);
+        return false;
+    }
+
     /** @return array<string, string> */
     private function input(): array
     {
@@ -202,6 +233,7 @@ final class TaskController
             'title'    => $existing ? 'Редактирование задачи' : 'Новая задача',
             'task'     => $task,
             'existing' => $existing,
+            'readonly' => $existing !== null && !Task::canManage($existing, (int) Auth::id()),
             'errors'   => $errors,
             'users'    => User::all(),
             'back'     => Request::back(),

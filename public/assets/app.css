@@ -706,3 +706,15 @@ select {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Только просмотр (чужие задачи) ---------- */
+.form-fields { display: grid; gap: 18px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.form-fields:disabled input, .form-fields:disabled select, .form-fields:disabled textarea {
+  background-color: var(--surface-2); color: var(--text-2); border-color: var(--border); cursor: default; opacity: 1;
+  -webkit-text-fill-color: var(--text-2);
+}
+.form-fields:disabled select { background-image: none; }
+.alert--info { justify-content: flex-start; background: var(--info-soft); color: var(--info); border-color: color-mix(in srgb, var(--info) 22%, transparent); }
+.readonly-mark { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-left: auto; color: var(--muted); opacity: .8; }
+.readonly-mark .icon { width: 16px; height: 16px; }
+.task-card.is-readonly .tag { font-size: 12.5px; padding: 6px 12px 6px 10px; }
