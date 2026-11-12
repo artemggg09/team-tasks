@@ -2,6 +2,7 @@
 /**
  * @var array|null $focus
  * @var string $backUrl
+ * @var array $owner
  */
 use App\Models\Task;
 ?>
@@ -10,7 +11,7 @@ use App\Models\Task;
         <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12"/><circle cx="16" cy="16" r="7.5"/><circle cx="16" cy="16" r="3" class="focus__core"/></svg>
     </div>
     <div class="focus__body">
-        <p class="focus__eyebrow"><span>Фокус дня</span> · <?= e(ru_date()) ?></p>
+        <p class="focus__eyebrow"><span>Фокус дня</span><?= $owner['self'] ? '' : ' · ' . e($owner['name']) ?> · <?= e(ru_date()) ?></p>
         <?php if ($focus !== null): ?>
             <h2 class="focus__title">
                 <a href="/tasks/<?= (int) $focus['id'] ?>/edit?back=<?= e(rawurlencode($backUrl)) ?>"><?= e($focus['title']) ?></a>
@@ -25,7 +26,7 @@ use App\Models\Task;
             </p>
         <?php else: ?>
             <h2 class="focus__title">Все задачи закрыты</h2>
-            <p class="focus__text">Открытых задач для вас нет — возьмите новую или создайте задачу.</p>
+            <p class="focus__text"><?= $owner['self'] ? 'Открытых задач для вас нет — возьмите новую или создайте задачу.' : 'У этого исполнителя нет открытых задач.' ?></p>
         <?php endif; ?>
     </div>
     <div class="focus__action">

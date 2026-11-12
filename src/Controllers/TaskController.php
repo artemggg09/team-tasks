@@ -20,6 +20,7 @@ final class TaskController
         $filters = Task::normalizeFilters($_GET);
         $userId = (int) Auth::id();
         $tasks = Task::search($filters, $userId);
+        $owner = $this->paceOwner($filters);
 
         $active = array_filter([
             $filters['q'], $filters['status'], $filters['assignee'], $filters['priority'],
@@ -34,9 +35,27 @@ final class TaskController
             'users'       => User::all(),
             'activeCount' => count($active),
             'backUrl'     => tasks_url($filters),
-            'focus'       => Task::focus($userId),
-            'pace'        => Task::weekPace($userId),
+            'focus'       => Task::focus($owner['id'], $owner['self']),
+            'pace'        => Task::weekPace($owner['id']),
+            'owner'       => $owner,
         ]);
+    }
+
+    /**
+     * Чей «фокус дня» и «темп недели» показывать: выбранного в фильтре исполнителя или текущего пользователя.
+     *
+     * @return array{id:int, name:string, self:bool}
+     */
+    private function paceOwner(array $filters): array
+    {
+        $me = (int) Auth::id();
+        if (ctype_digit($filters['assignee']) && (int) $filters['assignee'] !== $me) {
+            $user = User::find((int) $filters['assignee']);
+            if ($user !== null) {
+                return ['id' => (int) $user['id'], 'name' => $user['name'], 'self' => false];
+            }
+        }
+        return ['id' => $me, 'name' => (string) (Auth::user()['name'] ?? ''), 'self' => true];
     }
 
     public function create(): void
@@ -141,7 +160,7 @@ final class TaskController
                     'overdue'      => Task::isOverdue($task),
                 ],
                 'counts'  => Task::statusCounts($filters, (int) Auth::id()),
-                'pace'    => Task::weekPace((int) Auth::id()),
+                'pace'    => Task::weekPace($this->paceOwner($filters)['id']),
                 'message' => '«' . $task['title'] . '» → ' . Task::STATUSES[$status],
             ]);
             return;

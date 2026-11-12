@@ -8,6 +8,7 @@
  * @var string $backUrl
  * @var array|null $focus
  * @var array $pace
+ * @var array $owner
  */
 use App\Core\View;
 use App\Models\Task;
@@ -37,8 +38,8 @@ $statLabels = ['new' => 'Новых', 'in_progress' => 'В работе', 'done'
 </header>
 
 <section class="hero" aria-label="Фокус дня и темп недели">
-    <?= View::partial('partials/focus', ['focus' => $focus, 'backUrl' => $backUrl]) ?>
-    <?= View::partial('partials/pace', ['pace' => $pace]) ?>
+    <?= View::partial('partials/focus', ['focus' => $focus, 'backUrl' => $backUrl, 'owner' => $owner]) ?>
+    <?= View::partial('partials/pace', ['pace' => $pace, 'owner' => $owner]) ?>
 </section>
 
 <details class="filters" id="filters"<?= $activeCount > 0 ? ' data-active="1"' : '' ?>>

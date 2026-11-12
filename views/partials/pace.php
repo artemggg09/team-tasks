@@ -1,12 +1,12 @@
 <?php
-/** @var array $pace */
+/** @var array $pace @var array $owner */
 ?>
 <div class="pace pace--<?= e($pace['level']) ?>" id="pace" aria-labelledby="pace-title">
     <div class="pace__head">
-        <h2 class="pace__title" id="pace-title">Мой темп недели</h2>
+        <h2 class="pace__title" id="pace-title"><?= $owner['self'] ? 'Мой темп недели' : 'Темп недели · ' . e($owner['name']) ?></h2>
         <span class="pace__ratio" data-pace="ratio"><?= (int) $pace['done'] ?> из <?= (int) $pace['planned'] ?></span>
     </div>
-    <div class="pace__bar" role="meter" aria-label="Закрыто моих задач за неделю" aria-valuemin="0"
+    <div class="pace__bar" role="meter" aria-label="Закрыто задач за неделю" aria-valuemin="0"
          aria-valuemax="<?= (int) $pace['planned'] ?>" aria-valuenow="<?= (int) $pace['done'] ?>" data-pace="bar">
         <?php for ($i = 0; $i < $pace['segments']; $i++): ?>
             <span class="pace__seg<?= $i < $pace['filled'] ? ' is-on' : '' ?>"></span>

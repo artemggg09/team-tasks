@@ -195,11 +195,12 @@ final class Task
      * «Фокус дня»: одна незавершённая задача, с которой стоит начать.
      * Сначала мои, затем без исполнителя; внутри — просроченные, на сегодня, высокий приоритет, ближайший срок.
      */
-    public static function focus(int $userId): ?array
+    public static function focus(int $userId, bool $withUnassigned = true): ?array
     {
         $today = date('Y-m-d');
+        $who = $withUnassigned ? '(t.assignee_id = :me OR t.assignee_id IS NULL)' : 't.assignee_id = :me';
         $stmt = Database::connection()->prepare(self::SELECT . "
-            WHERE t.status <> 'done' AND (t.assignee_id = :me OR t.assignee_id IS NULL)
+            WHERE t.status <> 'done' AND {$who}
             ORDER BY
                 CASE WHEN t.assignee_id = :me2 THEN 0 ELSE 1 END,
                 CASE WHEN t.due_date IS NOT NULL AND t.due_date < :today THEN 0
@@ -262,11 +263,11 @@ final class Task
         }
 
         $note = match (true) {
-            $overdue > 0      => $overdue . ' ' . plural($overdue, 'ваша задача просрочена', 'ваши задачи просрочены', 'ваших задач просрочено'),
+            $overdue > 0      => $overdue . ' ' . plural($overdue, 'задача просрочена', 'задачи просрочены', 'задач просрочено'),
             $level === 'good' => 'Отличный темп — так держать',
             $level === 'warn' => 'Неплохо, но можно быстрее',
             $level === 'bad'  => 'Закрыто мало задач',
-            default           => 'На этой неделе у вас нет задач со сроком',
+            default           => 'Задач со сроком на эту неделю нет',
         };
 
         return [
