@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Core;
 
 /**
- * Простой валидатор. Правила: required, username, bytes:MIN,MAX, email, min:N, max:N, in:a,b,c, date, same:field.
+ * Простой валидатор. Правила: required, username, bytes:MIN,MAX, min:N, max:N, in:a,b,c, date, same:field.
  */
 final class Validator
 {
@@ -57,11 +57,6 @@ final class Validator
                     $this->errors[$field] = "Минимум {$minBytes} " . plural($minBytes, 'символ', 'символа', 'символов') . ' латиницей (кириллица считается за 2).';
                 } elseif ($bytes > $maxBytes) {
                     $this->errors[$field] = "Слишком длинный: максимум {$maxBytes} байт (≈ {$maxBytes} символов латиницей или " . intdiv($maxBytes, 2) . ' кириллицей).';
-                }
-                break;
-            case 'email':
-                if (filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
-                    $this->errors[$field] = 'Введите корректный email.';
                 }
                 break;
             case 'min':

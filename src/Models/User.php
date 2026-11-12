@@ -137,14 +137,4 @@ final class User
     {
         return mb_strtolower(trim($username), 'UTF-8');
     }
-
-    /**
-     * Логин из старого email (для миграции): часть до «@», только допустимые символы.
-     */
-    public static function usernameFromEmail(string $email): string
-    {
-        $local = strtolower((string) strstr($email, '@', true) ?: $email);
-        $login = substr((string) preg_replace('/[^a-z0-9_]+/', '', $local), 0, 32);
-        return strlen($login) >= 3 ? $login : str_pad($login, 3, '0') ;
-    }
 }

@@ -7,3 +7,9 @@ docs
 .osp
 .idea
 .vscode
+tests
+README.md
+.gitattributes
+.gitignore
+.dockerignore
+Dockerfile

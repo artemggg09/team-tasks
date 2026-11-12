@@ -56,10 +56,9 @@ php database/migrate.php && php database/seed.php && php -S localhost:8000 -t pu
 
 - `composer install` необязателен: без него работает встроенный автозагрузчик.
 - `php database/migrate.php` безопасно запускать повторно; для SQLite таблицы создаются и обновляются автоматически.
-- `php database/seed.php --fresh` пересоздаёт демо-данные.
+- `php database/seed.php --fresh` пересоздаёт тестовые данные.
 - `php tests/run.php` — тесты регистрации (по умолчанию на SQLite в памяти; для MySQL задайте `TEST_DB_DSN` с пустой тестовой базой).
-- `php database/import-sqlite.php [файл.sqlite]` переносит пользователей и задачи из SQLite в пустую MySQL-базу.
-- **OSPanel 6:** в `.osp/project.ini` DocumentRoot уже указан на `public/`.
+- **OSPanel 6:** укажите в настройках домена папку `public/` как корневую (файл `.osp/project.ini` локальный и в git не хранится).
 
 ### Через Docker
 
@@ -72,11 +71,9 @@ docker run -p 8080:80 -v team-tasks-data:/var/www/html/storage team-tasks
 
 ### Render.com
 
-1. Загрузите репозиторий на GitHub.
-2. В Render: **New → Blueprint**, выберите репозиторий. Будет использован `render.yaml`: Docker-сервис и Persistent Disk на 1 ГБ, смонтированный в `/var/www/html/storage`.
-3. При старте контейнер сам создаст и обновит таблицы. Тестовые пользователи не создаются — первый аккаунт зарегистрируйте на сайте (для тестового стенда можно задать `SEED_DEMO=1`).
-
-> Persistent Disk есть только на платных планах Render. На бесплатном плане файловая система сбрасывается при каждом деплое. Тогда подключите внешнюю MySQL через `DB_DSN`, `DB_USER`, `DB_PASS` или используйте Railway.
+1. **New → Web Service**, выберите репозиторий; среда — Docker (Render найдёт `Dockerfile`).
+2. MySQL у Render нет — подключите внешнюю базу (например, Aiven, или MySQL-сервис на Railway) и задайте переменные `DB_DSN`, `DB_USER`, `DB_PASS`.
+3. При старте контейнер сам создаст таблицы. Тестовые пользователи не создаются — первый аккаунт зарегистрируйте на сайте.
 
 ### Railway (рекомендуется для MySQL)
 
@@ -113,10 +110,11 @@ src/
   Controllers/     AuthController, TaskController
   Models/          User, Task
 views/             layout.php, auth/, tasks/, partials/, errors/
-database/          schema.mysql.sql, schema.sql, migrate.php, seed.php, import-sqlite.php
+database/          schema.mysql.sql, schema.sql, migrate.php, seed.php
+tests/             run.php — тесты регистрации без зависимостей
 storage/           файл SQLite и логи (в .gitignore)
 docker/            entrypoint.sh: порт из $PORT, миграция, сид, права
-config.php, .env.example, Dockerfile, render.yaml, composer.json
+config.php, .env.example, Dockerfile, composer.json
 ```
 
 ## Маршруты

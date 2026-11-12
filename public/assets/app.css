@@ -356,8 +356,6 @@ select {
 .auth__title { font-size: 28px; font-weight: 800; letter-spacing: -.03em; }
 .auth__lead { color: var(--muted); margin: 6px 0 24px; }
 .auth__switch { margin-top: 20px; text-align: center; color: var(--muted); font-size: 14px; }
-.auth__demo { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-text); font-size: 13px; text-align: center; }
-.auth__demo code { background: transparent; padding: 0; font-weight: 700; }
 
 /* ---------- Заголовок страницы ---------- */
 
