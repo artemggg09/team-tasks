@@ -37,6 +37,24 @@ header('Referrer-Policy: same-origin');
 header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'");
 header('Cache-Control: no-store, private');
 
+// Production: только HTTPS. HTTPS определяет is_https() (учитывает X-Forwarded-Proto за прокси).
+// В других окружениях (APP_ENV=local) ничего не делаем — локально работает по http://.
+if (is_production()) {
+    if (!is_https()) {
+        // Host из запроса, но только корректного вида — иначе редирект можно увести на произвольную строку
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+        if (preg_match('/^[a-z0-9.-]+(:\d{1,5})?$/i', $host) !== 1) {
+            http_response_code(400);
+            exit('Bad Request');
+        }
+        // 308 сохраняет метод и тело запроса (в отличие от 301/302), путь и query — как есть
+        header('Location: https://' . $host . ($_SERVER['REQUEST_URI'] ?? '/'), true, 308);
+        exit;
+    }
+    // HSTS только по HTTPS (по HTTP браузер его игнорирует). Без preload — осознанно
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
+
 Session::start();
 
 $router = new Router();

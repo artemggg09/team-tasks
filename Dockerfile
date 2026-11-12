@@ -1,3 +1,6 @@
+# ВНИМАНИЕ: сборка этого образа не проверялась (при разработке Docker был недоступен).
+# Перед первым деплоем выполните: docker build -t team-tasks . && docker run --rm team-tasks php -m
+
 # --- Автозагрузчик Composer (PSR-4) ---
 FROM composer:2 AS vendor
 WORKDIR /app
@@ -24,6 +27,12 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-av
 # Продакшен-настройки PHP: ошибки не выводятся, пишутся в лог (stderr контейнера)
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && printf 'expose_php=Off\ndisplay_errors=Off\nlog_errors=On\nerror_log=/dev/stderr\n' > "$PHP_INI_DIR/conf.d/app.ini"
+
+# OPcache: в официальном образе собран, но может быть не загружен — включаем, только если его нет в php -m.
+# validate_timestamps=0: PHP не проверяет изменения файлов — новый код применяется перезапуском контейнера.
+RUN (php -m | grep -qi '^zend opcache$' || docker-php-ext-install opcache) \
+    && printf 'opcache.enable=1\nopcache.memory_consumption=128\nopcache.max_accelerated_files=10000\nopcache.validate_timestamps=0\nopcache.save_comments=1\n' \
+       > /usr/local/etc/php/conf.d/opcache-production.ini
 
 WORKDIR /var/www/html
 COPY . .
