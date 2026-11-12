@@ -12,7 +12,17 @@ final class Request
     public static function input(string $key, string $default = ''): string
     {
         $value = $_POST[$key] ?? $_GET[$key] ?? $default;
-        return is_string($value) ? trim($value) : $default;
+        // Невалидный UTF-8 (например, cp1251) заменяем, иначе MySQL отклонит запись с ошибкой 1366
+        return is_string($value) ? trim(mb_scrub($value, 'UTF-8')) : $default;
+    }
+
+    /**
+     * Значение из $_POST без обрезки пробелов (для паролей); не строка — пустая строка.
+     */
+    public static function raw(string $key): string
+    {
+        $value = $_POST[$key] ?? '';
+        return is_string($value) ? $value : '';
     }
 
     /**

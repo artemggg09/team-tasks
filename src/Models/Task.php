@@ -49,7 +49,7 @@ final class Task
      */
     public static function normalizeFilters(array $query): array
     {
-        $str = static fn (string $key): string => is_string($query[$key] ?? null) ? trim($query[$key]) : '';
+        $str = static fn (string $key): string => is_string($query[$key] ?? null) ? trim(mb_scrub($query[$key], 'UTF-8')) : '';
 
         $assignee = $str('assignee');
         if ($assignee !== 'none' && !ctype_digit($assignee)) {
@@ -78,8 +78,9 @@ final class Task
 
         if ($f['q'] !== '') {
             $lower = Database::lowerFn();
-            $like = '%' . addcslashes(mb_strtolower($f['q']), '%_\\') . '%';
-            $sql[] = "({$lower}(t.title) LIKE :q1 ESCAPE '\\' OR {$lower}(COALESCE(t.description, '')) LIKE :q2 ESCAPE '\\')";
+            // Экранируем % и _ символом «!» — одинаково работает в SQLite и MySQL (обратный слеш в MySQL ломает литерал)
+            $like = '%' . strtr(mb_strtolower($f['q']), ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+            $sql[] = "({$lower}(t.title) LIKE :q1 ESCAPE '!' OR {$lower}(COALESCE(t.description, '')) LIKE :q2 ESCAPE '!')";
             $params['q1'] = $like;
             $params['q2'] = $like;
         }

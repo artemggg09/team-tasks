@@ -22,7 +22,7 @@ final class AuthController
     public function login(): void
     {
         $data = Request::only(['email', 'password']);
-        $data['password'] = (string) ($_POST['password'] ?? ''); // пароль не обрезаем
+        $data['password'] = Request::raw('password'); // пароль не обрезаем
         $old = ['email' => $data['email']];
 
         $v = new Validator($data, [
@@ -70,8 +70,8 @@ final class AuthController
     public function register(): void
     {
         $data = Request::only(['name', 'email']);
-        $data['password'] = (string) ($_POST['password'] ?? '');
-        $data['password_confirmation'] = (string) ($_POST['password_confirmation'] ?? '');
+        $data['password'] = Request::raw('password');
+        $data['password_confirmation'] = Request::raw('password_confirmation');
 
         $v = new Validator($data, [
             'name'                  => ['required', 'min:2', 'max:100'],

@@ -33,7 +33,7 @@
 |---|---|---|
 | Бэкенд | PHP 8.1+ без фреймворков | По заданию; маленькое приложение, весь код на виду: роутер, CSRF, сессии, валидация |
 | Автозагрузка | Composer, PSR-4 | Стандарт; без `vendor/` срабатывает встроенный запасной автозагрузчик |
-| БД | SQLite через PDO | Ноль настройки, один файл, достаточно для команды. MySQL подключается через DSN в `.env` |
+| БД | MySQL 8 через PDO | Надёжная работа при одновременной записи нескольких пользователей, привычный сервер для хостинга. SQLite по-прежнему поддерживается — достаточно сменить `DB_DSN` |
 | Шаблоны | Нативный PHP + `e()` | Без шаблонизатора; весь вывод экранируется `htmlspecialchars(ENT_QUOTES)` |
 | Стили | Чистый CSS с переменными | Темизация и адаптив без сборки |
 | JS | ~250 строк ванильного JS | Только прогрессивное улучшение: fetch для статусов, drag-and-drop, автоприменение фильтров |
@@ -41,18 +41,22 @@
 
 ## Локальный запуск
 
-Нужен PHP 8.1+ с расширениями `pdo_sqlite` и `mbstring`.
+Нужен PHP 8.1+ с расширениями `pdo_mysql` и `mbstring` и MySQL 8 (или MariaDB).
 
 ```bash
-cp .env.example .env
+mysql -u root -e "CREATE DATABASE team_tasks CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+cp .env.example .env          # при необходимости поправьте DB_DSN, DB_USER, DB_PASS
 php database/migrate.php && php database/seed.php && php -S localhost:8000 -t public
 ```
+
+Без сервера БД можно запустить на SQLite: в `.env` укажите `DB_DSN=sqlite:storage/database.sqlite` (нужно расширение `pdo_sqlite`).
 
 Откройте http://localhost:8000 и войдите как `demo@example.com` / `demo12345`.
 
 - `composer install` необязателен: без него работает встроенный автозагрузчик.
-- Если файла БД нет, таблицы создаются автоматически при первом запросе.
+- `php database/migrate.php` безопасно запускать повторно; для SQLite таблицы создаются и обновляются автоматически.
 - `php database/seed.php --fresh` пересоздаёт демо-данные.
+- `php database/import-sqlite.php [файл.sqlite]` переносит пользователей и задачи из SQLite в пустую MySQL-базу.
 - **OSPanel 6:** в `.osp/project.ini` DocumentRoot уже указан на `public/`.
 
 ### Через Docker
@@ -72,9 +76,11 @@ docker run -p 8080:80 -v team-tasks-data:/var/www/html/storage team-tasks
 
 > Persistent Disk есть только на платных планах Render. На бесплатном плане файловая система сбрасывается при каждом деплое. Тогда подключите внешнюю MySQL через `DB_DSN`, `DB_USER`, `DB_PASS` или используйте Railway.
 
-### Railway
+### Railway (рекомендуется для MySQL)
 
-New Project → Deploy from GitHub repo. Railway найдёт `Dockerfile`. Добавьте Volume с путём монтирования `/var/www/html/storage`. Порт берётся из `$PORT` автоматически.
+New Project → Deploy from GitHub repo. Railway найдёт `Dockerfile`. Добавьте в проект сервис **MySQL** и задайте приложению переменные:
+`DB_DSN=mysql:host=${{MySQL.MYSQLHOST}};port=${{MySQL.MYSQLPORT}};dbname=${{MySQL.MYSQLDATABASE}};charset=utf8mb4`, `DB_USER=${{MySQL.MYSQLUSER}}`, `DB_PASS=${{MySQL.MYSQLPASSWORD}}`.
+Миграция и демо-данные выполнятся при старте контейнера. Порт берётся из `$PORT` автоматически.
 
 ### Обычный хостинг с Apache
 
@@ -87,7 +93,7 @@ New Project → Deploy from GitHub repo. Railway найдёт `Dockerfile`. До
 | `APP_ENV` | `production` | `local` — ошибки выводятся на экран, `production` — только в лог |
 | `APP_URL` | `http://localhost:8000` | Публичный адрес |
 | `APP_TIMEZONE` | `Europe/Moscow` | Часовой пояс для сроков и «просроченных» |
-| `DB_DSN` | `sqlite:storage/database.sqlite` | Например, `mysql:host=…;dbname=…;charset=utf8mb4` |
+| `DB_DSN` | `sqlite:storage/database.sqlite` (в Docker, если не задано) | `mysql:host=…;port=3306;dbname=…;charset=utf8mb4` или `sqlite:путь` |
 | `DB_USER`, `DB_PASS` | пусто | Для MySQL |
 | `APP_LOG` | `storage/logs/app.log` | Пустое значение — стандартный лог (stderr в Docker) |
 
@@ -105,7 +111,7 @@ src/
   Controllers/     AuthController, TaskController
   Models/          User, Task
 views/             layout.php, auth/, tasks/, partials/, errors/
-database/          schema.sql, schema.mysql.sql, migrate.php, seed.php
+database/          schema.mysql.sql, schema.sql, migrate.php, seed.php, import-sqlite.php
 storage/           файл SQLite и логи (в .gitignore)
 docker/            entrypoint.sh: порт из $PORT, миграция, сид, права
 config.php, .env.example, Dockerfile, render.yaml, composer.json
@@ -145,7 +151,7 @@ config.php, .env.example, Dockerfile, render.yaml, composer.json
 - [x] Ответственного можно назначить, сменить и снять.
 - [x] Три статуса; смена работает с JS (fetch, JSON) и без него (POST и редирект).
 - [x] Поиск и фильтры комбинируются и сохраняются в URL.
-- [x] Данные в SQLite сохраняются после перезагрузки страницы и перезапуска сервера.
+- [x] Данные в MySQL сохраняются после перезагрузки страницы и перезапуска сервера.
 - [x] При ширине 320, 375, 768, 1024 и 1440px горизонтальной прокрутки нет (проверено в headless Chrome).
 - [x] `<script>alert(1)</script>` выводится как текст, `' OR 1=1 --` ищется как обычная строка, POST без CSRF-токена получает 419.
 - [x] `php -l` проходит без ошибок, в логах нет warnings (проверено на PHP 8.2 и 8.5).
