@@ -11,6 +11,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/src/bootstrap.php';
 
 use App\Core\Database;
+use App\Models\User;
 
 if (PHP_SAPI !== 'cli') {
     exit('CLI only');
@@ -42,7 +43,7 @@ foreach (['users', 'tasks'] as $table) {
 }
 
 $columns = [
-    'users' => ['id', 'name', 'email', 'password_hash', 'created_at'],
+    'users' => ['id', 'name', 'username', 'password_hash', 'created_at'],
     'tasks' => ['id', 'title', 'description', 'status', 'priority', 'due_date', 'assignee_id', 'author_id', 'created_at', 'updated_at', 'completed_at'],
 ];
 
@@ -53,6 +54,15 @@ try {
         $existing = array_column($sqlite->query("PRAGMA table_info({$table})")->fetchAll(), 'name');
         $selectCols = array_map(static fn ($c) => in_array($c, $existing, true) ? $c : "NULL AS {$c}", $cols);
         $rows = $sqlite->query('SELECT ' . implode(', ', $selectCols) . " FROM {$table} ORDER BY id")->fetchAll();
+
+        // Старые файлы SQLite хранят email — логин берём из него
+        if ($table === 'users' && !in_array('username', $existing, true)) {
+            $emails = $sqlite->query('SELECT id, email FROM users')->fetchAll(PDO::FETCH_KEY_PAIR);
+            foreach ($rows as &$row) {
+                $row['username'] = User::usernameFromEmail((string) ($emails[$row['id']] ?? 'user' . $row['id']));
+            }
+            unset($row);
+        }
 
         $insert = $target->prepare("INSERT INTO {$table} (" . implode(', ', $cols) . ') VALUES (' . implode(', ', array_fill(0, count($cols), '?')) . ')');
         foreach ($rows as $row) {

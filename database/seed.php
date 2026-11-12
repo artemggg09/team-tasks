@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 /*
- * Демо-данные: php database/seed.php
+ * Тестовые данные: php database/seed.php
  *   без флагов — заполняет только пустую БД (безопасно при каждом деплое);
  *   --fresh    — удаляет все данные и заполняет заново.
  *
- * Демо-доступ: demo@example.com / demo12345
+ * Учётные записи: anna, ivan, maria — пароль password123 (смените или удалите на боевом сервере).
  */
 
 require dirname(__DIR__) . '/src/bootstrap.php';
@@ -39,24 +39,24 @@ try {
         $db->exec('DELETE FROM login_attempts');
     }
 
-    $demo = User::create('Демо Пользователь', 'demo@example.com', 'demo12345');
-    $anna = User::create('Анна Смирнова', 'anna@example.com', 'demo12345');
-    $ivan = User::create('Иван Петров', 'ivan@example.com', 'demo12345');
+    $maria = User::create('Мария Кузнецова', 'maria', 'password123');
+    $anna = User::create('Анна Смирнова', 'anna', 'password123');
+    $ivan = User::create('Иван Петров', 'ivan', 'password123');
 
     $day = static fn (int $offset): string => date('Y-m-d', strtotime(($offset >= 0 ? '+' : '') . $offset . ' days'));
 
     $tasks = [
-        ['Подготовить макет главной страницы', 'Собрать варианты в Figma: десктоп и мобильная версия. Показать команде в пятницу.', 'in_progress', 'high', $day(2), $anna, $demo],
-        ['Настроить резервное копирование БД', 'Ежедневный бэкап storage/database.sqlite в облачное хранилище.', 'new', 'high', $day(-2), $ivan, $demo],
-        ['Написать README для проекта', 'Описание, запуск, деплой, скриншоты.', 'done', 'medium', $day(-1), $demo, $anna],
-        ['Провести ретроспективу спринта', null, 'new', 'medium', $day(5), $demo, $ivan],
-        ['Исправить вёрстку карточек на iPhone SE', 'На ширине 320px заголовок вылезает за границы карточки.', 'in_progress', 'medium', $day(-3), $demo, $anna],
+        ['Подготовить макет главной страницы', 'Собрать варианты в Figma: десктоп и мобильная версия. Показать команде в пятницу.', 'in_progress', 'high', $day(2), $anna, $maria],
+        ['Настроить резервное копирование БД', 'Ежедневный бэкап storage/database.sqlite в облачное хранилище.', 'new', 'high', $day(-2), $ivan, $maria],
+        ['Написать README для проекта', 'Описание, запуск, деплой, скриншоты.', 'done', 'medium', $day(-1), $maria, $anna],
+        ['Провести ретроспективу спринта', null, 'new', 'medium', $day(5), $maria, $ivan],
+        ['Исправить вёрстку карточек на iPhone SE', 'На ширине 320px заголовок вылезает за границы карточки.', 'in_progress', 'medium', $day(-3), $maria, $anna],
         ['Обновить зависимости Docker-образа', 'Перейти на свежий php:8.2-apache и проверить сборку.', 'new', 'low', null, null, $ivan],
-        ['Созвон с заказчиком по требованиям', 'Уточнить сценарии фильтрации и роли пользователей.', 'done', 'high', $day(-6), $anna, $demo],
+        ['Созвон с заказчиком по требованиям', 'Уточнить сценарии фильтрации и роли пользователей.', 'done', 'high', $day(-6), $anna, $maria],
         ['Добавить тёмную тему', 'Через prefers-color-scheme и CSS-переменные.', 'done', 'low', $day(-4), $ivan, $ivan],
-        ['Проверить доступность форм', 'Label у всех полей, видимый фокус, контраст 4.5:1.', 'new', 'medium', $day(7), $anna, $demo],
+        ['Проверить доступность форм', 'Label у всех полей, видимый фокус, контраст 4.5:1.', 'new', 'medium', $day(7), $anna, $maria],
         ['Подготовить демо для команды', 'Сценарий: регистрация → задача → смена статуса → фильтры.', 'in_progress', 'high', $day(1), $ivan, $anna],
-        ['Собрать обратную связь от тестировщиков', null, 'new', 'low', $day(10), null, $demo],
+        ['Собрать обратную связь от тестировщиков', null, 'new', 'low', $day(10), null, $maria],
     ];
 
     $i = count($tasks);
@@ -82,4 +82,4 @@ try {
     exit(1);
 }
 
-echo 'Демо-данные добавлены: 3 пользователя, ' . count($tasks) . ' задач. Вход: demo@example.com / demo12345' . PHP_EOL;
+echo 'Тестовые данные добавлены: 3 пользователя, ' . count($tasks) . ' задач. Логины: anna, ivan, maria; пароль password123' . PHP_EOL;

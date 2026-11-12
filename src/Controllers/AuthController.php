@@ -21,21 +21,22 @@ final class AuthController
 
     public function login(): void
     {
-        $data = Request::only(['email', 'password']);
+        $data = Request::only(['username']);
+        $data['username'] = User::normalize($data['username']);
         $data['password'] = Request::raw('password'); // пароль не обрезаем
-        $old = ['email' => $data['email']];
+        $old = ['username' => $data['username']];
 
         $v = new Validator($data, [
-            'email'    => ['required', 'email', 'max:190'],
+            'username' => ['required', 'max:30'],
             'password' => ['required', 'max:72'],
-        ], ['email' => 'Email', 'password' => 'Пароль']);
+        ], ['username' => 'Логин', 'password' => 'Пароль']);
 
         if ($v->fails()) {
             View::show('auth/login', ['title' => 'Вход', 'old' => $old, 'errors' => $v->errors()], 422);
             return;
         }
 
-        $key = LoginThrottle::key($data['email'], Request::ip());
+        $key = LoginThrottle::key($data['username'], Request::ip());
         $wait = LoginThrottle::secondsLeft($key);
         if ($wait > 0) {
             View::show('auth/login', [
@@ -46,12 +47,12 @@ final class AuthController
             return;
         }
 
-        $user = User::findByEmail($data['email']);
+        $user = User::findByUsername($data['username']);
         // Проверяем хеш даже для несуществующего пользователя — одинаковое время ответа
         $hash = $user['password_hash'] ?? password_hash(random_bytes(16), PASSWORD_DEFAULT);
         if ($user === null || !password_verify($data['password'], $hash)) {
             LoginThrottle::hit($key);
-            View::show('auth/login', ['title' => 'Вход', 'old' => $old, 'errors' => ['form' => 'Неверный email или пароль.']], 422);
+            View::show('auth/login', ['title' => 'Вход', 'old' => $old, 'errors' => ['form' => 'Неверный логин или пароль.']], 422);
             return;
         }
 
@@ -69,31 +70,32 @@ final class AuthController
 
     public function register(): void
     {
-        $data = Request::only(['name', 'email']);
+        $data = Request::only(['name', 'username']);
+        $data['username'] = User::normalize($data['username']);
         $data['password'] = Request::raw('password');
         $data['password_confirmation'] = Request::raw('password_confirmation');
 
         $v = new Validator($data, [
             'name'                  => ['required', 'min:2', 'max:100'],
-            'email'                 => ['required', 'email', 'max:190'],
+            'username'              => ['required', 'username'],
             'password'              => ['required', 'min:8', 'max:72'],
             'password_confirmation' => ['required', 'same:password'],
-        ], ['name' => 'Имя', 'email' => 'Email', 'password' => 'Пароль', 'password_confirmation' => 'Подтверждение пароля']);
+        ], ['name' => 'Имя', 'username' => 'Логин', 'password' => 'Пароль', 'password_confirmation' => 'Подтверждение пароля']);
 
-        if (!isset($v->errors()['email']) && User::emailExists($data['email'])) {
-            $v->addError('email', 'Пользователь с таким email уже зарегистрирован.');
+        if (!isset($v->errors()['username']) && User::usernameExists($data['username'])) {
+            $v->addError('username', 'Этот логин уже занят — выберите другой.');
         }
 
         if ($v->fails()) {
             View::show('auth/register', [
                 'title'  => 'Регистрация',
-                'old'    => ['name' => $data['name'], 'email' => $data['email']],
+                'old'    => ['name' => $data['name'], 'username' => $data['username']],
                 'errors' => $v->errors(),
             ], 422);
             return;
         }
 
-        $id = User::create($data['name'], $data['email'], $data['password']);
+        $id = User::create($data['name'], $data['username'], $data['password']);
         Auth::login(User::find($id) ?? []);
         Session::flash('success', 'Аккаунт создан. Добро пожаловать, ' . $data['name'] . '!');
         redirect('/tasks');

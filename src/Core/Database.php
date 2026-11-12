@@ -10,7 +10,7 @@ use RuntimeException;
 final class Database
 {
     /** Увеличивать при изменении схемы */
-    public const SCHEMA_VERSION = 2;
+    public const SCHEMA_VERSION = 3;
 
     private static ?PDO $pdo = null;
 
@@ -108,9 +108,66 @@ final class Database
             $pdo->exec("UPDATE tasks SET completed_at = updated_at WHERE status = 'done'");
         }
 
+        // v3: вход по логину — email заменяется на username
+        if (self::hasColumn('users', 'email')) {
+            self::migrateEmailToUsername($pdo);
+        }
+
         if (self::driver() === 'sqlite') {
             $pdo->exec('PRAGMA user_version = ' . self::SCHEMA_VERSION);
         }
+    }
+
+    /**
+     * Логин берётся из части email до «@» (только допустимые символы, при совпадении — с номером), колонка email удаляется.
+     */
+    private static function migrateEmailToUsername(PDO $pdo): void
+    {
+        $users = $pdo->query('SELECT id, email FROM users ORDER BY id')->fetchAll();
+        $taken = [];
+        $logins = [];
+        foreach ($users as $u) {
+            $base = \App\Models\User::usernameFromEmail((string) $u['email']);
+            $login = $base;
+            for ($i = 2; isset($taken[$login]); $i++) {
+                $login = substr($base, 0, 27) . $i;
+            }
+            $taken[$login] = true;
+            $logins[(int) $u['id']] = $login;
+        }
+
+        if (self::driver() === 'sqlite') {
+            // SQLite не умеет удалять UNIQUE-колонку — пересобираем таблицу
+            $pdo->exec('PRAGMA foreign_keys = OFF');
+            $pdo->beginTransaction();
+            $pdo->exec('CREATE TABLE users_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR(100) NOT NULL,
+                username VARCHAR(30) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )');
+            $insert = $pdo->prepare('INSERT INTO users_new (id, name, username, password_hash, created_at) SELECT id, name, ?, password_hash, created_at FROM users WHERE id = ?');
+            foreach ($logins as $id => $login) {
+                $insert->execute([$login, $id]);
+            }
+            $pdo->exec('DROP TABLE users');
+            $pdo->exec('ALTER TABLE users_new RENAME TO users');
+            $pdo->commit();
+            $pdo->exec('PRAGMA foreign_keys = ON');
+            return;
+        }
+
+        // MySQL: DDL не транзакционный, шаги идемпотентны
+        if (!self::hasColumn('users', 'username')) {
+            $pdo->exec('ALTER TABLE users ADD COLUMN username VARCHAR(30) NULL AFTER name');
+        }
+        $update = $pdo->prepare('UPDATE users SET username = ? WHERE id = ?');
+        foreach ($logins as $id => $login) {
+            $update->execute([$login, $id]);
+        }
+        $pdo->exec('ALTER TABLE users MODIFY username VARCHAR(30) NOT NULL, ADD UNIQUE KEY users_username_unique (username)');
+        $pdo->exec('ALTER TABLE users DROP COLUMN email');
     }
 
     private static function hasColumn(string $table, string $column): bool

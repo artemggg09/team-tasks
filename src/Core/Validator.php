@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Core;
 
 /**
- * Простой валидатор. Правила: required, email, min:N, max:N, in:a,b,c, date, same:field.
+ * Простой валидатор. Правила: required, username, email, min:N, max:N, in:a,b,c, date, same:field.
  */
 final class Validator
 {
@@ -42,6 +42,11 @@ final class Validator
             case 'required':
                 if ($value === '') {
                     $this->errors[$field] = "Заполните поле «{$label}».";
+                }
+                break;
+            case 'username':
+                if (preg_match(\App\Models\User::USERNAME_PATTERN, $value) !== 1) {
+                    $this->errors[$field] = 'Логин: от 3 до 30 символов — латинские буквы, цифры, точка, дефис или подчёркивание.';
                 }
                 break;
             case 'email':

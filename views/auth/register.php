@@ -17,9 +17,10 @@ $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid=
                 <?= View::partial('partials/field-error', ['errors' => $errors, 'field' => 'name']) ?>
             </div>
             <div class="field">
-                <label for="email">Email</label>
-                <input id="email" type="email" name="email" value="<?= e($old['email'] ?? '') ?>" autocomplete="email" required maxlength="190"<?= $invalid('email') ?>>
-                <?= View::partial('partials/field-error', ['errors' => $errors, 'field' => 'email']) ?>
+                <label for="username">Логин</label>
+                <input id="username" type="text" name="username" value="<?= e($old['username'] ?? '') ?>" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="30" pattern="[A-Za-z0-9._\-]{3,30}"<?= $invalid('username') ?>>
+                <p class="field__hint">3–30 символов: латинские буквы, цифры, точка, дефис, подчёркивание.</p>
+                <?= View::partial('partials/field-error', ['errors' => $errors, 'field' => 'username']) ?>
             </div>
             <div class="field">
                 <label for="password">Пароль</label>

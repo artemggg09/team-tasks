@@ -6,16 +6,16 @@ namespace App\Core;
 
 /**
  * Ограничение попыток входа: после 5 неудач подряд — пауза 60 секунд.
- * Счётчик хранится в БД по паре «IP + email», поэтому не сбрасывается вместе с cookie.
+ * Счётчик хранится в БД по паре «IP + логин», поэтому не сбрасывается вместе с cookie.
  */
 final class LoginThrottle
 {
     public const MAX_ATTEMPTS = 5;
     public const LOCK_SECONDS = 60;
 
-    public static function key(string $email, string $ip): string
+    public static function key(string $username, string $ip): string
     {
-        return hash('sha256', mb_strtolower($email) . '|' . $ip);
+        return hash('sha256', mb_strtolower($username) . '|' . $ip);
     }
 
     /**

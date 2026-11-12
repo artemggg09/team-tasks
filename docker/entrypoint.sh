@@ -10,9 +10,12 @@ sed -ri "s/<VirtualHost \*:[0-9]+>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-
 mkdir -p /var/www/html/storage
 cd /var/www/html
 
-# Таблицы создаются идемпотентно, демо-данные — только в пустую БД
+# Таблицы создаются и обновляются идемпотентно. Тестовые данные (сид) на сервере не создаются —
+# пользователи регистрируются сами. Для стенда можно задать SEED_DEMO=1.
 php database/migrate.php
-php database/seed.php
+if [ "${SEED_DEMO:-0}" = "1" ]; then
+    php database/seed.php
+fi
 
 chown -R www-data:www-data /var/www/html/storage
 

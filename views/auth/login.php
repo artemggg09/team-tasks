@@ -16,9 +16,9 @@ $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid=
         <form method="post" action="/login" class="form" novalidate>
             <?= csrf_field() ?>
             <div class="field">
-                <label for="email">Email</label>
-                <input id="email" type="email" name="email" value="<?= e($old['email'] ?? '') ?>" autocomplete="email" required maxlength="190" autofocus<?= $invalid('email') ?>>
-                <?= View::partial('partials/field-error', ['errors' => $errors, 'field' => 'email']) ?>
+                <label for="username">Логин</label>
+                <input id="username" type="text" name="username" value="<?= e($old['username'] ?? '') ?>" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="30" autofocus<?= $invalid('username') ?>>
+                <?= View::partial('partials/field-error', ['errors' => $errors, 'field' => 'username']) ?>
             </div>
             <div class="field">
                 <label for="password">Пароль</label>
@@ -29,6 +29,5 @@ $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid=
         </form>
 
         <p class="auth__switch">Нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
-        <p class="auth__demo">Демо-доступ: <code>demo@example.com</code> / <code>demo12345</code></p>
     </div>
 </section>
