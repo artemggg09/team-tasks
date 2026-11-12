@@ -11,10 +11,13 @@ RUN composer dump-autoload --optimize --no-dev
 # --- Приложение ---
 FROM php:8.2-apache
 
-# pdo_sqlite уже входит в официальный образ; добавляем pdo_mysql для перехода на MySQL
+# pdo_sqlite уже входит в официальный образ; добавляем pdo_mysql для перехода на MySQL.
+# mod_php работает только с mpm_prefork; второй MPM даёт «AH00534: More than one MPM loaded».
 RUN docker-php-ext-install pdo_mysql \
     && php -m | grep -q pdo_sqlite \
-    && a2enmod rewrite headers expires
+    && a2enmod rewrite headers expires \
+    && rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.* \
+    && a2enmod mpm_prefork
 
 # DocumentRoot → public/
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
