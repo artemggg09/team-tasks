@@ -1,0 +1,9 @@
+.git
+.env
+vendor
+storage/*
+!storage/.gitkeep
+docs
+.osp
+.idea
+.vscode

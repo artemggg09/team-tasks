@@ -1,0 +1,9 @@
+# Подстраховка для хостингов, где DocumentRoot нельзя направить на public/:
+# все запросы уходят в public/, поэтому src/, storage/ и .env снаружи недоступны.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

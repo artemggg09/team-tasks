@@ -1,0 +1,2 @@
+/* Подключается только без JavaScript */
+.nojs-only { display: inline-flex !important; }
