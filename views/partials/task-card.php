@@ -8,10 +8,11 @@ use App\Models\Task;
 $id = (int) $task['id'];
 $editUrl = '/tasks/' . $id . '/edit?back=' . rawurlencode($backUrl);
 $canManage = !empty($task['can_manage']);
+$canStatus = !empty($task['can_status']);
 ?>
 <article class="task-card status-<?= e($task['status']) ?><?= $task['overdue'] ? ' is-overdue' : '' ?><?= $canManage ? '' : ' is-readonly' ?>" id="task-<?= $id ?>" data-id="<?= $id ?>" data-status="<?= e($task['status']) ?>">
     <div class="task-card__top">
-        <?php if ($canManage): ?>
+        <?php if ($canStatus): ?>
         <form class="status-form" method="post" action="/tasks/<?= $id ?>/status">
             <?= csrf_field() ?>
             <input type="hidden" name="back" value="<?= e($backUrl) ?>">
@@ -27,7 +28,7 @@ $canManage = !empty($task['can_manage']);
             <button class="btn btn-secondary btn-sm nojs-only" type="submit">Сменить</button>
         </form>
         <?php else: ?>
-            <span class="tag tag--<?= e($task['status']) ?>" title="Статус меняют автор или ответственный"><?= e(Task::STATUSES[$task['status']]) ?></span>
+            <span class="tag tag--<?= e($task['status']) ?>" title="Статус меняет только ответственный"><?= e(Task::STATUSES[$task['status']]) ?></span>
         <?php endif; ?>
         <span class="priority priority--<?= e($task['priority']) ?>" title="Приоритет">
             <span class="priority__dot" aria-hidden="true"></span><?= e(Task::PRIORITIES[$task['priority']] ?? $task['priority']) ?>

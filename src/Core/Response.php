@@ -32,9 +32,10 @@ final class Response
         echo $html;
     }
 
-    public static function error(int $code, ?Throwable $exception = null): void
+    public static function error(int $code, ?Throwable $exception = null, ?string $customMessage = null): void
     {
         [$title, $message] = self::ERRORS[$code] ?? self::ERRORS[500];
+        $message = $customMessage ?? $message;
 
         if (Request::wantsJson()) {
             if (!headers_sent()) {

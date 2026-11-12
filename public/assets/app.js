@@ -119,6 +119,7 @@
         if (card) applyStatus(card, json.task);
         updateCounts(json.counts);
         updatePace(json.pace);
+        updateFocus(json.focus_html);
         toast(json.message || ('Статус: ' + labels[status]));
       })
       .catch(function (err) {
@@ -166,6 +167,15 @@
     });
   }
 
+  function updateFocus(html) {
+    var el = document.querySelector('.hero .focus');
+    if (!el || typeof html !== 'string' || html === '') return;
+    var tpl = document.createElement('template');
+    tpl.innerHTML = html.trim(); // HTML отрендерен сервером, все значения экранированы
+    var next = tpl.content.firstElementChild;
+    if (next) el.replaceWith(next);
+  }
+
   function updatePace(p) {
     var el = document.getElementById('pace');
     if (!el || !p) return;
@@ -200,8 +210,8 @@
     var dragged = null;
 
     // Перетаскивать можно только задачи, которые пользователь вправе менять
-    board.querySelectorAll('.task-card:not(.is-readonly)').forEach(function (card) {
-      card.setAttribute('draggable', 'true');
+    board.querySelectorAll('.task-card').forEach(function (card) {
+      if (card.querySelector('.status-form')) card.setAttribute('draggable', 'true');
     });
 
     board.addEventListener('dragstart', function (e) {

@@ -6,12 +6,14 @@
  * @var array $users
  * @var string $back
  * @var bool $readonly  чужая задача — только просмотр
+ * @var bool $statusLocked  статус меняет только ответственный
  */
 use App\Core\View;
 use App\Models\Task;
 
 $isEdit = $existing !== null;
 $readonly ??= false;
+$statusLocked ??= false;
 $action = $isEdit ? '/tasks/' . (int) $existing['id'] : '/tasks';
 $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid="true" aria-describedby="' . $f . '-error"' : '';
 ?>
@@ -71,11 +73,14 @@ $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid=
 
             <div class="field">
                 <label for="status">Статус</label>
-                <select id="status" name="status"<?= $invalid('status') ?>>
+                <select id="status" name="status"<?= $statusLocked ? ' disabled aria-describedby="status-hint"' : '' ?><?= $invalid('status') ?>>
                     <?php foreach (Task::STATUSES as $code => $label): ?>
                         <option value="<?= e($code) ?>"<?= $task['status'] === $code ? ' selected' : '' ?>><?= e($label) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <?php if ($statusLocked && !$readonly): ?>
+                    <p class="field__hint" id="status-hint">Статус меняет только ответственный за задачу.</p>
+                <?php endif; ?>
                 <?= View::partial('partials/field-error', ['errors' => $errors, 'field' => 'status']) ?>
             </div>
 

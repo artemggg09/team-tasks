@@ -19,12 +19,9 @@ final class TaskController
     {
         $filters = Task::normalizeFilters($_GET);
         $userId = (int) Auth::id();
-        $tasks = array_map(static fn (array $t) => $t + ['can_manage' => Task::canManage($t, $userId)], Task::search($filters, $userId));
+        $tasks = array_map(static fn (array $t) => self::withRights($t, $userId), Task::search($filters, $userId));
         $owner = $this->paceOwner($filters);
-        $focus = Task::focus($owner['id'], $owner['self']);
-        if ($focus !== null) {
-            $focus['can_manage'] = Task::canManage($focus, $userId);
-        }
+        $focus = $this->focusFor($owner, $userId);
 
         $active = array_filter([
             $filters['q'], $filters['status'], $filters['assignee'], $filters['priority'],
@@ -108,6 +105,9 @@ final class TaskController
             return;
         }
         $data = $this->input();
+        if (!Task::canChangeStatus($task, (int) Auth::id())) {
+            $data['status'] = $task['status']; // статус меняет только ответственный
+        }
         $v = $this->validate($data);
         if ($v->fails()) {
             $this->form($data, $v->errors(), $task, 422);
@@ -144,7 +144,7 @@ final class TaskController
             return;
         }
 
-        if (!$this->authorize($task)) {
+        if (!$this->authorize($task, Task::canChangeStatus($task, (int) Auth::id()), 'Статус меняет только ответственный за задачу.')) {
             return;
         }
 
@@ -176,6 +176,12 @@ final class TaskController
                 ],
                 'counts'  => Task::statusCounts($filters, (int) Auth::id()),
                 'pace'    => Task::weekPace($this->paceOwner($filters)['id']),
+                // «Фокус дня» мог смениться — отдаём готовый HTML блока
+                'focus_html' => View::partial('partials/focus', [
+                    'focus'   => $this->focusFor($this->paceOwner($filters), (int) Auth::id()),
+                    'backUrl' => $back,
+                    'owner'   => $this->paceOwner($filters),
+                ]),
                 'message' => '«' . $task['title'] . '» → ' . Task::STATUSES[$status],
             ]);
             return;
@@ -188,17 +194,31 @@ final class TaskController
     /**
      * Проверка прав на изменение задачи; при отказе отдаёт 403 (JSON для fetch).
      */
-    private function authorize(array $task): bool
+    private function authorize(array $task, ?bool $allowed = null, string $message = 'Менять задачу может только её автор или ответственный.'): bool
     {
-        if (Task::canManage($task, (int) Auth::id())) {
+        if ($allowed ?? Task::canManage($task, (int) Auth::id())) {
             return true;
         }
         if (Request::wantsJson()) {
-            Response::json(['ok' => false, 'error' => 'Менять задачу может только её автор или ответственный.'], 403);
+            Response::json(['ok' => false, 'error' => $message], 403);
             return false;
         }
-        Response::error(403);
+        Response::error(403, null, $message);
         return false;
+    }
+
+    /** Флаги прав для шаблонов: can_manage — редактировать/удалять, can_status — менять статус. */
+    private static function withRights(array $task, int $userId): array
+    {
+        $task['can_manage'] = Task::canManage($task, $userId);
+        $task['can_status'] = Task::canChangeStatus($task, $userId);
+        return $task;
+    }
+
+    private function focusFor(array $owner, int $userId): ?array
+    {
+        $focus = Task::focus($owner['id'], $owner['self']);
+        return $focus === null ? null : self::withRights($focus, $userId);
     }
 
     /** @return array<string, string> */
@@ -234,6 +254,7 @@ final class TaskController
             'task'     => $task,
             'existing' => $existing,
             'readonly' => $existing !== null && !Task::canManage($existing, (int) Auth::id()),
+            'statusLocked' => $existing !== null && !Task::canChangeStatus($existing, (int) Auth::id()),
             'errors'   => $errors,
             'users'    => User::all(),
             'back'     => Request::back(),
