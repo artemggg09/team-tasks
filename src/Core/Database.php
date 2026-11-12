@@ -10,7 +10,7 @@ use RuntimeException;
 final class Database
 {
     /** Увеличивать при изменении схемы */
-    public const SCHEMA_VERSION = 3;
+    public const SCHEMA_VERSION = 4;
 
     private static ?PDO $pdo = null;
 
@@ -113,6 +113,15 @@ final class Database
             self::migrateEmailToUsername($pdo);
         }
 
+        // v4: логин до 32 символов (в SQLite длина VARCHAR не ограничивается — менять нечего)
+        if (self::driver() === 'mysql') {
+            $stmt = $pdo->query("SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'username'");
+            if ((int) $stmt->fetchColumn() < 32) {
+                $pdo->exec('ALTER TABLE users MODIFY username VARCHAR(32) NOT NULL');
+            }
+        }
+
         if (self::driver() === 'sqlite') {
             $pdo->exec('PRAGMA user_version = ' . self::SCHEMA_VERSION);
         }
@@ -130,7 +139,7 @@ final class Database
             $base = \App\Models\User::usernameFromEmail((string) $u['email']);
             $login = $base;
             for ($i = 2; isset($taken[$login]); $i++) {
-                $login = substr($base, 0, 27) . $i;
+                $login = substr($base, 0, 29) . $i;
             }
             $taken[$login] = true;
             $logins[(int) $u['id']] = $login;
@@ -143,7 +152,7 @@ final class Database
             $pdo->exec('CREATE TABLE users_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name VARCHAR(100) NOT NULL,
-                username VARCHAR(30) NOT NULL UNIQUE,
+                username VARCHAR(32) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
             )');
@@ -160,13 +169,13 @@ final class Database
 
         // MySQL: DDL не транзакционный, шаги идемпотентны
         if (!self::hasColumn('users', 'username')) {
-            $pdo->exec('ALTER TABLE users ADD COLUMN username VARCHAR(30) NULL AFTER name');
+            $pdo->exec('ALTER TABLE users ADD COLUMN username VARCHAR(32) NULL AFTER name');
         }
         $update = $pdo->prepare('UPDATE users SET username = ? WHERE id = ?');
         foreach ($logins as $id => $login) {
             $update->execute([$login, $id]);
         }
-        $pdo->exec('ALTER TABLE users MODIFY username VARCHAR(30) NOT NULL, ADD UNIQUE KEY users_username_unique (username)');
+        $pdo->exec('ALTER TABLE users MODIFY username VARCHAR(32) NOT NULL, ADD UNIQUE KEY users_username_unique (username)');
         $pdo->exec('ALTER TABLE users DROP COLUMN email');
     }
 

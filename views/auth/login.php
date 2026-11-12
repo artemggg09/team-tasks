@@ -17,7 +17,7 @@ $invalid = static fn (string $f): string => isset($errors[$f]) ? ' aria-invalid=
             <?= csrf_field() ?>
             <div class="field">
                 <label for="username">Логин</label>
-                <input id="username" type="text" name="username" value="<?= e($old['username'] ?? '') ?>" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="30" autofocus<?= $invalid('username') ?>>
+                <input id="username" type="text" name="username" value="<?= e($old['username'] ?? '') ?>" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="32" autofocus<?= $invalid('username') ?>>
                 <?= View::partial('partials/field-error', ['errors' => $errors, 'field' => 'username']) ?>
             </div>
             <div class="field">

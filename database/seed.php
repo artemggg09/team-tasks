@@ -7,7 +7,7 @@ declare(strict_types=1);
  *   без флагов — заполняет только пустую БД (безопасно при каждом деплое);
  *   --fresh    — удаляет все данные и заполняет заново.
  *
- * Учётные записи: anna, ivan, maria — пароль password123 (смените или удалите на боевом сервере).
+ * Учётные записи: anna, ivan, maria — пароль password1234 (смените или удалите на боевом сервере).
  */
 
 require dirname(__DIR__) . '/src/bootstrap.php';
@@ -39,9 +39,9 @@ try {
         $db->exec('DELETE FROM login_attempts');
     }
 
-    $maria = User::create('Мария Кузнецова', 'maria', 'password123');
-    $anna = User::create('Анна Смирнова', 'anna', 'password123');
-    $ivan = User::create('Иван Петров', 'ivan', 'password123');
+    $maria = User::create('Мария Кузнецова', 'maria', 'password1234');
+    $anna = User::create('Анна Смирнова', 'anna', 'password1234');
+    $ivan = User::create('Иван Петров', 'ivan', 'password1234');
 
     $day = static fn (int $offset): string => date('Y-m-d', strtotime(($offset >= 0 ? '+' : '') . $offset . ' days'));
 
@@ -82,4 +82,4 @@ try {
     exit(1);
 }
 
-echo 'Тестовые данные добавлены: 3 пользователя, ' . count($tasks) . ' задач. Логины: anna, ivan, maria; пароль password123' . PHP_EOL;
+echo 'Тестовые данные добавлены: 3 пользователя, ' . count($tasks) . ' задач. Логины: anna, ivan, maria; пароль password1234' . PHP_EOL;

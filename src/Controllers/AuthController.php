@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Auth;
+use App\Exceptions\UsernameTakenException;
 use App\Core\LoginThrottle;
 use App\Core\Request;
 use App\Core\Session;
@@ -27,7 +28,7 @@ final class AuthController
         $old = ['username' => $data['username']];
 
         $v = new Validator($data, [
-            'username' => ['required', 'max:30'],
+            'username' => ['required', 'max:32'],
             'password' => ['required', 'max:72'],
         ], ['username' => 'Логин', 'password' => 'Пароль']);
 
@@ -57,6 +58,8 @@ final class AuthController
         }
 
         LoginThrottle::clear($key);
+        // Хеш со старым алгоритмом/стоимостью пересчитываем, пока пароль есть в открытом виде
+        User::rehashIfNeeded((int) $user['id'], $hash, $data['password']);
         unset($user['password_hash']);
         Auth::login($user);
         Session::flash('success', 'С возвращением, ' . $user['name'] . '!');
@@ -76,29 +79,37 @@ final class AuthController
         $data['password_confirmation'] = Request::raw('password_confirmation');
 
         $v = new Validator($data, [
-            'name'                  => ['required', 'min:2', 'max:100'],
+            'name'                  => ['required', 'max:' . User::NAME_MAX],
             'username'              => ['required', 'username'],
-            'password'              => ['required', 'min:8', 'max:72'],
+            'password'              => ['required', 'bytes:' . User::PASSWORD_MIN_BYTES . ',' . User::PASSWORD_MAX_BYTES],
             'password_confirmation' => ['required', 'same:password'],
         ], ['name' => 'Имя', 'username' => 'Логин', 'password' => 'Пароль', 'password_confirmation' => 'Подтверждение пароля']);
 
-        if (!isset($v->errors()['username']) && User::usernameExists($data['username'])) {
-            $v->addError('username', 'Этот логин уже занят — выберите другой.');
-        }
-
         if ($v->fails()) {
-            View::show('auth/register', [
-                'title'  => 'Регистрация',
-                'old'    => ['name' => $data['name'], 'username' => $data['username']],
-                'errors' => $v->errors(),
-            ], 422);
+            $this->registerFailed($data, $v->errors());
             return;
         }
 
-        $id = User::create($data['name'], $data['username'], $data['password']);
+        // Занятость логина проверяет UNIQUE-индекс при INSERT, без предварительного SELECT
+        try {
+            $id = User::create($data['name'], $data['username'], $data['password']);
+        } catch (UsernameTakenException) {
+            $this->registerFailed($data, ['username' => 'Этот логин уже занят — выберите другой.']);
+            return;
+        }
         Auth::login(User::find($id) ?? []);
         Session::flash('success', 'Аккаунт создан. Добро пожаловать, ' . $data['name'] . '!');
         redirect('/tasks');
+    }
+
+    /** @param array<string, string> $errors */
+    private function registerFailed(array $data, array $errors): void
+    {
+        View::show('auth/register', [
+            'title'  => 'Регистрация',
+            'old'    => ['name' => $data['name'], 'username' => $data['username']],
+            'errors' => $errors,
+        ], 422);
     }
 
     public function logout(): void

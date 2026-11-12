@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Core;
 
 /**
- * Простой валидатор. Правила: required, username, email, min:N, max:N, in:a,b,c, date, same:field.
+ * Простой валидатор. Правила: required, username, bytes:MIN,MAX, email, min:N, max:N, in:a,b,c, date, same:field.
  */
 final class Validator
 {
@@ -46,7 +46,17 @@ final class Validator
                 break;
             case 'username':
                 if (preg_match(\App\Models\User::USERNAME_PATTERN, $value) !== 1) {
-                    $this->errors[$field] = 'Логин: от 3 до 30 символов — латинские буквы, цифры, точка, дефис или подчёркивание.';
+                    $this->errors[$field] = 'Логин: от 3 до 32 символов — латинские буквы, цифры или подчёркивание.';
+                }
+                break;
+            case 'bytes':
+                // Длина в байтах (bcrypt учитывает только первые 72 байта); кириллица — 2 байта на символ
+                [$minBytes, $maxBytes] = array_map('intval', explode(',', (string) $arg) + [1 => PHP_INT_MAX]);
+                $bytes = strlen($value);
+                if ($bytes < $minBytes) {
+                    $this->errors[$field] = "Минимум {$minBytes} " . plural($minBytes, 'символ', 'символа', 'символов') . ' латиницей (кириллица считается за 2).';
+                } elseif ($bytes > $maxBytes) {
+                    $this->errors[$field] = "Слишком длинный: максимум {$maxBytes} байт (≈ {$maxBytes} символов латиницей или " . intdiv($maxBytes, 2) . ' кириллицей).';
                 }
                 break;
             case 'email':
