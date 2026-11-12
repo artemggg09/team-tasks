@@ -228,11 +228,12 @@ final class Task
     public const PACE_SEGMENTS = 5;
 
     /**
-     * «Темп недели» команды: закрыто за неделю / (закрыто + открытые со сроком до воскресенья, включая просроченные).
+     * Личный «темп недели» по задачам, где пользователь — ответственный (согласован с «фокусом дня»):
+     * закрыто за неделю / (закрыто + открытые со сроком до воскресенья, включая просроченные).
      *
      * @return array{done:int, planned:int, overdue:int, filled:int, segments:int, level:string, note:string}
      */
-    public static function weekPace(): array
+    public static function weekPace(int $userId): array
     {
         $db = Database::connection();
         $weekStart = date('Y-m-d 00:00:00', strtotime('monday this week'));
@@ -243,8 +244,8 @@ final class Task
                 SUM(CASE WHEN status = 'done' AND completed_at >= :week_start THEN 1 ELSE 0 END) AS done,
                 SUM(CASE WHEN status <> 'done' AND due_date IS NOT NULL AND due_date <= :week_end THEN 1 ELSE 0 END) AS open_due,
                 SUM(CASE WHEN status <> 'done' AND due_date IS NOT NULL AND due_date < :today THEN 1 ELSE 0 END) AS overdue
-            FROM tasks");
-        $stmt->execute(['week_start' => $weekStart, 'week_end' => $weekEnd, 'today' => $today]);
+            FROM tasks WHERE assignee_id = :me");
+        $stmt->execute(['week_start' => $weekStart, 'week_end' => $weekEnd, 'today' => $today, 'me' => $userId]);
         $row = $stmt->fetch() ?: [];
 
         $done = (int) ($row['done'] ?? 0);
@@ -261,11 +262,11 @@ final class Task
         }
 
         $note = match (true) {
-            $overdue > 0      => $overdue . ' ' . plural($overdue, 'задача требует', 'задачи требуют', 'задач требуют') . ' внимания',
+            $overdue > 0      => $overdue . ' ' . plural($overdue, 'ваша задача просрочена', 'ваши задачи просрочены', 'ваших задач просрочено'),
             $level === 'good' => 'Отличный темп — так держать',
             $level === 'warn' => 'Неплохо, но можно быстрее',
             $level === 'bad'  => 'Закрыто мало задач',
-            default           => 'На эту неделю задач со сроком нет',
+            default           => 'На этой неделе у вас нет задач со сроком',
         };
 
         return [
